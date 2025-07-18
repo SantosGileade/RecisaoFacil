@@ -10,12 +10,12 @@ function calcular() {
         return;
     }
 
-    // 🔸 Tempo total de trabalho
+    // 🔸 Tempo de trabalho total
     const diffAnos = saida.getFullYear() - admissao.getFullYear();
     const diffMeses = saida.getMonth() - admissao.getMonth();
-    const totalMesesTrabalhados = diffAnos * 12 + diffMeses + 1; // +1 inclui o mês da saída
+    const totalMesesTrabalhados = diffAnos * 12 + diffMeses + 1;
 
-    // 🔸 Cálculo do saldo de salário (dias no mês da saída)
+    // 🔸 Saldo de salário
     const diasTrabalhadosNoMesSaida = saida.getDate();
     const saldoSalario = (salario / 30) * diasTrabalhadosNoMesSaida;
 
@@ -24,49 +24,38 @@ function calcular() {
     if (aviso === "indenizado") {
         let diasAviso = 30;
         if (diffAnos >= 1) {
-            diasAviso += Math.min(diffAnos * 3, 60); // Acrescenta 3 dias por ano trabalhado
+            diasAviso += Math.min(diffAnos * 3, 60); // Máx 90 dias
         }
         avisoPrevio = (salario / 30) * diasAviso;
     }
 
-    // 🔸 Férias Vencidas — verifica se completou 12 meses
-    const dataUltimasFerias = new Date(admissao);
-    dataUltimasFerias.setFullYear(dataUltimasFerias.getFullYear() + 1);
-    const temFeriasVencidas = saida >= dataUltimasFerias;
+    // 🔸 Férias vencidas: completou ao menos 1 ano
+    const dataPrimeirasFerias = new Date(admissao);
+    dataPrimeirasFerias.setFullYear(dataPrimeirasFerias.getFullYear() + 1);
+    const temFeriasVencidas = saida >= dataPrimeirasFerias;
     const feriasVencidas = temFeriasVencidas ? salario + (salario / 3) : 0;
 
-    // 🔸 Férias proporcionais (último período aquisitivo)
-    const mesesTrabalhadosNoUltimoPeriodo = 
-        (saida.getFullYear() - dataUltimasFerias.getFullYear()) * 12 + 
-        (saida.getMonth() - dataUltimasFerias.getMonth()) + 
-        (saida.getDate() >= dataUltimasFerias.getDate() ? 1 : 0);
-
-    const mesesFeriasProporcionais = temFeriasVencidas 
-        ? mesesTrabalhadosNoUltimoPeriodo 
-        : totalMesesTrabalhados > 12 ? totalMesesTrabalhados - 12 : totalMesesTrabalhados;
-
-    const feriasProporcionais = (motivo !== 'justaCausa' && mesesFeriasProporcionais > 0)
-        ? ((salario / 12) * mesesFeriasProporcionais) + (((salario / 12) * mesesFeriasProporcionais) / 3)
+    // 🔸 Férias proporcionais (se não for justa causa)
+    const mesesProporcionais = saida.getMonth() + (saida.getDate() >= 15 ? 1 : 0);
+    const feriasProporcionais = motivo !== 'justaCausa'
+        ? ((salario / 12) * mesesProporcionais) + (((salario / 12) * mesesProporcionais) / 3)
         : 0;
 
-    // 🔸 13º proporcional (ano da saída)
-    const mesesDecimoTerceiro = saida.getMonth() + 1; // janeiro = 0 → +1
-    const decimoTerceiro = (motivo !== 'justaCausa')
-        ? (salario / 12) * mesesDecimoTerceiro
+    // 🔸 13º proporcional (considera se trabalhou pelo menos 15 dias do mês)
+    const mesesDecimo = saida.getMonth() + (saida.getDate() >= 15 ? 1 : 0);
+    const decimoTerceiro = motivo !== 'justaCausa'
+        ? (salario / 12) * mesesDecimo
         : 0;
 
-    // 🔸 Multa de 40% do FGTS (estimada)
+    // 🔸 Multa 40% do FGTS
     const fgtsMensal = salario * 0.08;
     const totalFgts = fgtsMensal * totalMesesTrabalhados;
-    const multaFgts = (motivo === 'semJustaCausa') ? totalFgts * 0.40 : 0;
+    const multaFgts = motivo === 'semJustaCausa' ? totalFgts * 0.4 : 0;
 
-    // 🔸 Total bruto
+    // 🔸 Total
     const totalBruto = saldoSalario + avisoPrevio + feriasVencidas + feriasProporcionais + decimoTerceiro + multaFgts;
-
-    // 🔸 Total líquido (sem descontos obrigatórios)
     const totalLiquido = totalBruto;
 
-    // 🔸 Mostrar resultado
     const detalhes = `
         <p><strong>Saldo de salário:</strong> R$ ${saldoSalario.toFixed(2)}</p>
         <p><strong>Aviso prévio:</strong> R$ ${avisoPrevio.toFixed(2)}</p>
